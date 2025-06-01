@@ -14,11 +14,26 @@ interface ProviderInfo {
   recommended?: boolean;
 }
 
+interface BillingKeyRequest {
+  storeId: string;
+  channelKey: string;
+  billingKeyMethod: string;
+  issueId: string;
+  issueName: string;
+  customer: {
+    fullName: string;
+    phoneNumber: string;
+    email: string;
+  };
+  redirectUrl: string;
+  easyPayProvider?: string;
+}
+
 const PROVIDERS: Record<PaymentProvider, ProviderInfo> = {
   TOSS: {
     name: '토스페이먼츠',
     channelKey: ENV.TOSS_CHANNEL_KEY || '',
-    method: 'CARD',
+    method: 'CARD' as const,
     description: '깔끔한 UI, 빠른 처리',
     icon: '💙',
     recommended: true
@@ -26,7 +41,7 @@ const PROVIDERS: Record<PaymentProvider, ProviderInfo> = {
   KAKAOPAY: {
     name: '카카오페이',
     channelKey: ENV.KAKAOPAY_CHANNEL_KEY || '',
-    method: 'EASY_PAY',
+    method: 'EASY_PAY' as const,
     description: '간편결제, 카톡으로 결제',
     icon: '💛',
     recommended: true
@@ -52,7 +67,15 @@ export default function Home() {
       console.log(ENV.PORTONE_STORE_ID);
       console.log(provider.channelKey);
       console.log(provider.method);
-      let billingKeyRequest: any = {
+      
+      // 환경 변수 검증
+      if (!ENV.PORTONE_STORE_ID || !provider.channelKey) {
+        setPaymentResult('환경 변수가 올바르게 설정되지 않았습니다.');
+        return;
+      }
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const billingKeyRequest: any = {
         storeId: ENV.PORTONE_STORE_ID,
         channelKey: provider.channelKey,
         billingKeyMethod: provider.method,
@@ -64,12 +87,8 @@ export default function Home() {
           email: "test@example.com",
         },
         redirectUrl: `${ENV.APP_URL}/payment/complete`,
+        ...(provider.method === 'EASY_PAY' && { easyPayProvider: selectedProvider })
       };
-
-      // 간편결제인 경우 provider 추가
-      if (provider.method === 'EASY_PAY') {
-        billingKeyRequest.easyPayProvider = selectedProvider;
-      }
 
       console.log('빌링키 발급 요청:', billingKeyRequest);
       console.log('현재 환경:', ENV.IS_PRODUCTION ? 'Production' : 'Development');
