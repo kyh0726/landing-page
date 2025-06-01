@@ -1,6 +1,7 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as PortOne from "@portone/browser-sdk/v2";
+import { ENV, validateEnv } from '../config/env';
 
 type PaymentProvider = 'TOSS' | 'KAKAOPAY';
 
@@ -16,7 +17,7 @@ interface ProviderInfo {
 const PROVIDERS: Record<PaymentProvider, ProviderInfo> = {
   TOSS: {
     name: '토스페이먼츠',
-    channelKey: 'channel-key-f285b864-d7c2-4a6e-9240-088e50965f51', // 토스페이먼츠 채널
+    channelKey: ENV.TOSS_CHANNEL_KEY || '',
     method: 'CARD',
     description: '깔끔한 UI, 빠른 처리',
     icon: '💙',
@@ -24,7 +25,7 @@ const PROVIDERS: Record<PaymentProvider, ProviderInfo> = {
   },
   KAKAOPAY: {
     name: '카카오페이',
-    channelKey: 'channel-key-822083c9-0cb6-4c16-8f00-f66f722b4ebe',
+    channelKey: ENV.KAKAOPAY_CHANNEL_KEY || '',
     method: 'EASY_PAY',
     description: '간편결제, 카톡으로 결제',
     icon: '💛',
@@ -37,15 +38,22 @@ export default function Home() {
   const [paymentResult, setPaymentResult] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<PaymentProvider>('KAKAOPAY');
 
+  // 컴포넌트 마운트 시 환경 변수 검증
+  useEffect(() => {
+    validateEnv();
+  }, []);
+
   const handlePayment = async () => {
     setIsPaymentLoading(true);
     setPaymentResult(null);
 
     try {
       const provider = PROVIDERS[selectedProvider];
-      
+      console.log(ENV.PORTONE_STORE_ID);
+      console.log(provider.channelKey);
+      console.log(provider.method);
       let billingKeyRequest: any = {
-        storeId: "store-472929b2-b8a5-4579-9666-e30402a31c25",
+        storeId: ENV.PORTONE_STORE_ID,
         channelKey: provider.channelKey,
         billingKeyMethod: provider.method,
         issueId: `billing-${crypto.randomUUID()}`,
@@ -55,7 +63,7 @@ export default function Home() {
           phoneNumber: "010-0000-0000",
           email: "test@example.com",
         },
-        redirectUrl: `${window.location.origin}/payment/complete`,
+        redirectUrl: `${ENV.APP_URL}/payment/complete`,
       };
 
       // 간편결제인 경우 provider 추가
@@ -64,6 +72,7 @@ export default function Home() {
       }
 
       console.log('빌링키 발급 요청:', billingKeyRequest);
+      console.log('현재 환경:', ENV.IS_PRODUCTION ? 'Production' : 'Development');
 
       const response = await PortOne.requestIssueBillingKey(billingKeyRequest);
 
@@ -94,6 +103,12 @@ export default function Home() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-blue-200 mb-2">Fossistant</h1>
           <p className="text-gray-400">오픈소스 기여 도우미</p>
+          {/* 개발 환경에서만 환경 정보 표시 */}
+          {ENV.IS_DEVELOPMENT && (
+            <p className="text-xs text-yellow-400 mt-1">
+              🛠️ 개발 환경 (StoreID: {ENV.PORTONE_STORE_ID?.slice(-8)})
+            </p>
+          )}
         </div>
 
         <div className="bg-[#232326] rounded-xl p-6 mb-6 border border-[#2d2d30]">
@@ -150,6 +165,12 @@ export default function Home() {
                         )}
                       </div>
                       <div className="text-sm text-gray-400">{provider.description}</div>
+                      {/* 개발 환경에서만 채널키 일부 표시 */}
+                      {ENV.IS_DEVELOPMENT && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          채널: {provider.channelKey.slice(-8)}
+                        </div>
+                      )}
                     </div>
                   </div>
                   {selectedProvider === key && (
@@ -190,6 +211,11 @@ export default function Home() {
           <p>안전한 결제를 위해 포트원 결제 시스템을 사용합니다.</p>
           <p>결제 정보는 암호화되어 보호됩니다.</p>
           <p className="mt-2 text-yellow-400">💡 간편결제로 빠르고 쉽게 구독하세요!</p>
+          {ENV.IS_DEVELOPMENT && (
+            <p className="mt-2 text-blue-400 text-xs">
+              🔧 개발 모드: 환경 변수 {ENV.IS_PRODUCTION ? '프로덕션' : '로컬'} 설정 사용
+            </p>
+          )}
         </div>
       </div>
     </div>
